@@ -1,15 +1,13 @@
-module Language.Reg where
+module Data.Language.Reg where
 
 import           Control.Applicative
 import           Data.Data           (Data)
 import           Data.Semigroup
 import           Prelude             hiding (seq)
-import           Language.Inf
+import           Data.Language.Inf
 import           Test.QuickCheck
 
--- | A finite (no Kleene star) regular expression that supports scoping.
--- Scoping supports operations such as a change of vocabulary in the expression
--- terms.
+-- | A finite (no Kleene star) regular expression.
 data Reg a
   = Seq (Reg a)
         (Reg a) -- Sequence two expressions one after the other.
@@ -67,12 +65,17 @@ instance Applicative Reg where
   f <*> x = f >>= (<$> x)
   pure = Symbol
 
-instance Semigroup (Reg a)
-
+-- | There are two reasonable choices for a monoid implementation: eps/seq and
+-- null/alt. However, we have chosen eps/seq as the concrete implementation
+-- since it more naturally parallels the `Alternative` implementation.
 instance Monoid (Reg a) where
   mempty = Eps
   mappend = seq
 
+instance Semigroup (Reg a)
+
+-- | The natural choice for an alternative instance is alt where the null
+-- expression is a unit.
 instance Alternative Reg where
   (<|>) = alt
   empty = Null

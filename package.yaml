@@ -25,3 +25,8 @@ default-extensions:
 
 library:
   source-dirs: src
+  exposed-modules:
+  - Data.Language.Inf
+  - Data.Language.Reg
+  - Data.Language.ScopedGrammar
+  - Data.Language.Grammar
