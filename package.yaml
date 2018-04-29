@@ -1,0 +1,27 @@
+name:                formal-language
+version:             0.1.0.0
+github:              "daheath/formal-language"
+license:             BSD3
+author:              "David Heath"
+maintainer:          "heath.davidanthony@gmail.com"
+copyright:           "2018 David Heath"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+dependencies:
+- base >= 4.7 && < 5
+- QuickCheck
+- containers
+- mtl
+
+default-extensions:
+- LambdaCase
+- DeriveDataTypeable
+- DeriveFoldable
+- DeriveTraversable
+- FlexibleContexts
+
+library:
+  source-dirs: src
