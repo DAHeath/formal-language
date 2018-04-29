@@ -29,8 +29,8 @@ type NT = Int
 type Rule s a = Reg (Either (s, NT) a)
 
 -- | Convenience patterns for recognizing terminals and nonterminals.
-pattern Nonterm :: a -> Reg (Either a b)
-pattern Nonterm x = R.Symbol (Left x)
+pattern Nonterm :: s -> a -> Reg (Either (s, a) b)
+pattern Nonterm s x = R.Symbol (Left (s, x))
 pattern Term :: b -> Reg (Either a b)
 pattern Term x = R.Symbol (Right x)
 
@@ -61,7 +61,7 @@ alt (Grammar s rs) (Grammar s' rs') =
 -- (scoped) nonterminal symbol.
 abstract :: s -> NT -> Grammar s a -> Grammar s a
 abstract sc nt (Grammar s rs) =
-  Grammar (Nonterm (sc, nt)) (M.insertWith R.alt nt s rs)
+  Grammar (Nonterm sc nt) (M.insertWith R.alt nt s rs)
 
 -- | The grammar which recognizes exactly the given terminal symbol.
 singleton :: a -> Grammar s a
@@ -98,7 +98,7 @@ ruleNonterminals =
   \case
     R.Seq x y -> ruleNonterminals x `S.union` ruleNonterminals y
     R.Alt x y -> ruleNonterminals x `S.union` ruleNonterminals y
-    Nonterm (_, nt) -> S.singleton nt
+    Nonterm _ nt -> S.singleton nt
     _ -> S.empty
 
 -- | Find a topological ordering for the nonterminals in the grammar.
@@ -113,7 +113,7 @@ topologicalOrder g = evalState (topo (start g)) S.empty
         R.Seq x y -> (++) <$> topo x <*> topo y
         R.Alt x y -> (++) <$> topo x <*> topo y
         Term _ -> pure []
-        Nonterm (_, nt) ->
+        Nonterm _ nt ->
           gets (nt `S.member`) >>= \case
             False -> do
               modify (S.insert nt)
@@ -147,7 +147,7 @@ instance Monad (Grammar s) where
               R.Eps -> pure R.Eps
               R.Seq a b -> R.seq <$> joinRule a <*> joinRule b
               R.Alt a b -> R.alt <$> joinRule a <*> joinRule b
-              Nonterm nt -> pure $ Nonterm nt
+              Nonterm sc nt -> pure $ Nonterm sc nt
               Term (Grammar st' rs') ->
                 modify (M.unionWith R.alt rs') >> pure st'
 
