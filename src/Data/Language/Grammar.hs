@@ -3,6 +3,7 @@
 module Data.Language.Grammar where
 
 import           Control.Monad.Reader
+import           Control.Monad.State
 import           Data.Data                   (Data)
 import           Data.IntMap                 (IntMap)
 import qualified Data.IntMap                 as M
@@ -11,6 +12,7 @@ import           Data.Language.Reg           (Reg)
 import qualified Data.Language.Reg           as R
 import qualified Data.Language.ScopedGrammar as SG
 import           Data.IntSet                 (IntSet)
+import qualified Data.IntSet                 as S
 
 -- | Context free grammars parameterized over their alphabet.
 --
@@ -79,21 +81,24 @@ newtype Context a = Context
   } deriving (Show, Read, Eq, Ord, Data)
 
 contextualize :: Grammar a -> Context a
-contextualize g = Context $ runReader (go $ start g) (Nothing, R.Eps, R.Eps)
+contextualize g = Context $ fst $ execState (runReaderT (go $ start g)
+  (Nothing, R.Eps, R.Eps)) (M.empty, S.empty)
   where
     go =
       \case
-        R.Seq a b ->
-          M.unionWith (++)
-            <$> local (\(nt, cbef, caft) -> (nt, cbef, R.seq b caft)) (go a)
-            <*> local (\(nt, cbef, caft) -> (nt, R.seq cbef a, caft)) (go b)
-        R.Alt a b -> M.union <$> go a <*> go b
+        R.Seq a b -> do
+          local (\(nt, cbef, caft) -> (nt, cbef, R.seq b caft)) (go a)
+          local (\(nt, cbef, caft) -> (nt, R.seq cbef a, caft)) (go b)
+        R.Alt a b -> go a >> go b
         Nonterm nt -> do
           ctx <- ask
-          M.unionWith (++) <$>
-            local (const (Just nt, R.Eps, R.Eps)) (go (ruleFor nt g)) <*>
-            pure (M.singleton nt [ctx])
-        _ -> pure mempty
+          s <- gets snd
+          modify (\(m, _) -> (M.insertWith (++) nt [ctx] m, S.insert nt s))
+          if nt `S.member` s
+          then pure ()
+          else
+            local (const (Just nt, R.Eps, R.Eps)) (go (ruleFor nt g))
+        _ -> pure ()
 
 contextFor :: NT -> Context a -> [(Maybe NT, Rule a, Rule a)]
 contextFor nt (Context m) = M.findWithDefault [] nt m
